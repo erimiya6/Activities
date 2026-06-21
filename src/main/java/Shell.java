@@ -58,15 +58,7 @@ public class Shell {
 
         if (pipeline.isBackground) {
             int jobId = registerJob(pipeline);
-            Thread jobThread = new Thread(() -> {
-                try {
-                    runPipeline(pipeline, jobId);
-                } finally {
-                    deregisterJob(jobId);
-                }
-            });
-            jobThread.setDaemon(true);
-            jobThread.start();
+            runPipeline(pipeline, jobId);
         } else {
             runPipeline(pipeline, -1);
         }
@@ -293,6 +285,43 @@ public class Shell {
                 System.out.println("[" + jobId + "] started");
             }
             System.out.flush();
+
+            Thread waitThread = new Thread(() -> {
+                try {
+                    for (Process p : processes) {
+                        try {
+                            p.waitFor();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+
+                    for (Thread t : builtinThreads) {
+                        try {
+                            t.join();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+
+                    for (Thread t : copyThreads) {
+                        try {
+                            t.join(200);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+
+                    String cmdLine = getCommandLineString(pipeline);
+                    System.out.println("[" + jobId + "]+  Done                    " + cmdLine);
+                    System.out.flush();
+                } finally {
+                    deregisterJob(jobId);
+                }
+            });
+            waitThread.setDaemon(true);
+            waitThread.start();
+            return;
         }
 
         for (Process p : processes) {
@@ -317,12 +346,6 @@ public class Shell {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-        }
-
-        if (jobId != -1) {
-            String cmdLine = getCommandLineString(pipeline);
-            System.out.println("[" + jobId + "]+  Done                    " + cmdLine);
-            System.out.flush();
         }
     }
 
