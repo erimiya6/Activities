@@ -290,33 +290,32 @@ public class Shell {
             System.out.flush();
 
             Thread waitThread = new Thread(() -> {
-                try {
-                    for (Process p : processes) {
-                        try {
-                            p.waitFor();
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
+                for (Process p : processes) {
+                    try {
+                        p.waitFor();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                     }
+                }
 
-                    for (Thread t : builtinThreads) {
-                        try {
-                            t.join();
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
+                for (Thread t : builtinThreads) {
+                    try {
+                        t.join();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                     }
+                }
 
-                    for (Thread t : copyThreads) {
-                        try {
-                            t.join(200);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
+                for (Thread t : copyThreads) {
+                    try {
+                        t.join(200);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                     }
+                }
 
-                } finally {
-                    deregisterJob(jobId);
+                if (job != null) {
+                    job.status = "Done";
                 }
             });
             waitThread.setDaemon(true);
@@ -485,9 +484,24 @@ public class Shell {
                 int currentJobId = activeCount >= 1 ? jobStartOrder.get(activeCount - 1) : -1;
                 int previousJobId = activeCount >= 2 ? jobStartOrder.get(activeCount - 2) : -1;
 
+                List<Integer> jobsToRemove = new ArrayList<>();
+
                 for (int id : sortedIds) {
                     Job job = activeJobs.get(id);
                     if (job != null) {
+                        if (job.status.equals("Running")) {
+                            boolean alive = false;
+                            for (Process p : job.processes) {
+                                if (p.isAlive()) {
+                                    alive = true;
+                                    break;
+                                }
+                            }
+                            if (!alive) {
+                                job.status = "Done";
+                            }
+                        }
+
                         char marker = ' ';
                         if (id == currentJobId) {
                             marker = '+';
@@ -500,9 +514,22 @@ public class Shell {
                         while (sb.length() < 30) {
                             sb.append(" ");
                         }
-                        sb.append(job.commandLine);
+                        
+                        String cmdStr = job.commandLine;
+                        if (job.status.equals("Done") && cmdStr.endsWith(" &")) {
+                            cmdStr = cmdStr.substring(0, cmdStr.length() - 2);
+                        }
+                        sb.append(cmdStr);
                         out.println(sb.toString());
+
+                        if (job.status.equals("Done")) {
+                            jobsToRemove.add(id);
+                        }
                     }
+                }
+
+                for (int id : jobsToRemove) {
+                    deregisterJob(id);
                 }
                 break;
         }
