@@ -2,7 +2,20 @@ import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        // TODO: Uncomment the code below to pass the first stage
-        // System.out.print("$ ");
+        Scanner scanner = new Scanner(System.in);
+        Shell shell = new Shell();
+
+        while (true) {
+            System.out.print("$ ");
+            System.out.flush();
+
+            if (!scanner.hasNextLine()) {
+                break;
+            }
+
+            String input = scanner.nextLine();
+            CommandLineParser.Command cmd = CommandLineParser.parse(input);
+            shell.execute(cmd);
+        }
     }
 }
