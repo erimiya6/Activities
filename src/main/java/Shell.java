@@ -47,6 +47,7 @@ public class Shell {
 
     private final Map<Integer, Job> activeJobs = new ConcurrentHashMap<>();
     private final AtomicInteger jobCounter = new AtomicInteger(1);
+    private final List<Integer> jobStartOrder = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public Shell() {
     }
@@ -69,11 +70,13 @@ public class Shell {
         String cmdLine = getCommandLineString(pipeline);
         Job job = new Job(id, cmdLine, new ArrayList<>(), "Running");
         activeJobs.put(id, job);
+        jobStartOrder.add(id);
         return id;
     }
 
     private void deregisterJob(int id) {
         activeJobs.remove(id);
+        jobStartOrder.remove(Integer.valueOf(id));
     }
 
     private String getCommandLineString(CommandLineParser.Pipeline pipeline) {
@@ -477,10 +480,28 @@ public class Shell {
             case "jobs":
                 List<Integer> sortedIds = new ArrayList<>(activeJobs.keySet());
                 Collections.sort(sortedIds);
+                
+                int activeCount = jobStartOrder.size();
+                int currentJobId = activeCount >= 1 ? jobStartOrder.get(activeCount - 1) : -1;
+                int previousJobId = activeCount >= 2 ? jobStartOrder.get(activeCount - 2) : -1;
+
                 for (int id : sortedIds) {
                     Job job = activeJobs.get(id);
                     if (job != null) {
-                        out.println("[" + job.id + "]+  " + job.status + "               " + job.commandLine);
+                        char marker = ' ';
+                        if (id == currentJobId) {
+                            marker = '+';
+                        } else if (id == previousJobId) {
+                            marker = '-';
+                        }
+                        
+                        String prefix = "[" + job.id + "]" + marker + "  " + job.status;
+                        StringBuilder sb = new StringBuilder(prefix);
+                        while (sb.length() < 30) {
+                            sb.append(" ");
+                        }
+                        sb.append(job.commandLine);
+                        out.println(sb.toString());
                     }
                 }
                 break;
