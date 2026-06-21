@@ -20,11 +20,24 @@ public class CommandLineParser {
         }
     }
 
-    public static Command parse(String line) {
+    public static class Pipeline {
+        public final List<Command> commands;
+        public final boolean isBackground;
+
+        public Pipeline(List<Command> commands, boolean isBackground) {
+            this.commands = commands;
+            this.isBackground = isBackground;
+        }
+    }
+
+    public static Pipeline parse(String line) {
         return parseInline(line);
     }
 
-    private static Command parseInline(String line) {
+    private static Pipeline parseInline(String line) {
+        List<Command> commands = new ArrayList<>();
+        boolean isBackground = false;
+
         List<String> tokens = new ArrayList<>();
         StringBuilder currentToken = new StringBuilder();
         boolean inSingleQuotes = false;
@@ -132,6 +145,59 @@ public class CommandLineParser {
                         else nextTokenIsStdoutFile = true;
                     }
                     tokenStarted = false;
+                } else if (c == '|') {
+                    if (tokenStarted) {
+                        String tok = currentToken.toString();
+                        if (nextTokenIsStdoutFile) {
+                            stdoutFile = tok;
+                            nextTokenIsStdoutFile = false;
+                        } else if (nextTokenIsStdoutAppendFile) {
+                            stdoutFile = tok;
+                            stdoutAppend = true;
+                            nextTokenIsStdoutAppendFile = false;
+                        } else if (nextTokenIsStderrFile) {
+                            stderrFile = tok;
+                            nextTokenIsStderrFile = false;
+                        } else if (nextTokenIsStderrAppendFile) {
+                            stderrFile = tok;
+                            stderrAppend = true;
+                            nextTokenIsStderrAppendFile = false;
+                        } else {
+                            tokens.add(tok);
+                        }
+                        currentToken.setLength(0);
+                        tokenStarted = false;
+                    }
+                    commands.add(new Command(new ArrayList<>(tokens), stdoutFile, stdoutAppend, stderrFile, stderrAppend));
+                    tokens.clear();
+                    stdoutFile = null;
+                    stdoutAppend = false;
+                    stderrFile = null;
+                    stderrAppend = false;
+                } else if (c == '&') {
+                    if (tokenStarted) {
+                        String tok = currentToken.toString();
+                        if (nextTokenIsStdoutFile) {
+                            stdoutFile = tok;
+                            nextTokenIsStdoutFile = false;
+                        } else if (nextTokenIsStdoutAppendFile) {
+                            stdoutFile = tok;
+                            stdoutAppend = true;
+                            nextTokenIsStdoutAppendFile = false;
+                        } else if (nextTokenIsStderrFile) {
+                            stderrFile = tok;
+                            nextTokenIsStderrFile = false;
+                        } else if (nextTokenIsStderrAppendFile) {
+                            stderrFile = tok;
+                            stderrAppend = true;
+                            nextTokenIsStderrAppendFile = false;
+                        } else {
+                            tokens.add(tok);
+                        }
+                        currentToken.setLength(0);
+                        tokenStarted = false;
+                    }
+                    isBackground = true;
                 } else if (Character.isWhitespace(c)) {
                     if (tokenStarted) {
                         String tok = currentToken.toString();
@@ -162,23 +228,26 @@ public class CommandLineParser {
             }
         }
 
-        if (tokenStarted) {
-            String tok = currentToken.toString();
-            if (nextTokenIsStdoutFile) {
-                stdoutFile = tok;
-            } else if (nextTokenIsStdoutAppendFile) {
-                stdoutFile = tok;
-                stdoutAppend = true;
-            } else if (nextTokenIsStderrFile) {
-                stderrFile = tok;
-            } else if (nextTokenIsStderrAppendFile) {
-                stderrFile = tok;
-                stderrAppend = true;
-            } else {
-                tokens.add(tok);
+        if (tokenStarted || !tokens.isEmpty() || stdoutFile != null || stderrFile != null) {
+            if (tokenStarted) {
+                String tok = currentToken.toString();
+                if (nextTokenIsStdoutFile) {
+                    stdoutFile = tok;
+                } else if (nextTokenIsStdoutAppendFile) {
+                    stdoutFile = tok;
+                    stdoutAppend = true;
+                } else if (nextTokenIsStderrFile) {
+                    stderrFile = tok;
+                } else if (nextTokenIsStderrAppendFile) {
+                    stderrFile = tok;
+                    stderrAppend = true;
+                } else {
+                    tokens.add(tok);
+                }
             }
+            commands.add(new Command(new ArrayList<>(tokens), stdoutFile, stdoutAppend, stderrFile, stderrAppend));
         }
 
-        return new Command(tokens, stdoutFile, stdoutAppend, stderrFile, stderrAppend);
+        return new Pipeline(commands, isBackground);
     }
 }

@@ -14,8 +14,8 @@ public class Main {
             }
 
             String input = scanner.nextLine();
-            CommandLineParser.Command cmd = CommandLineParser.parse(input);
-            shell.execute(cmd);
+            CommandLineParser.Pipeline pipeline = CommandLineParser.parse(input);
+            shell.execute(pipeline);
         }
     }
 }
