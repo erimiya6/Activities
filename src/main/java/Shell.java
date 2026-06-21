@@ -65,6 +65,54 @@ public class Shell {
         }
     }
 
+    public void reapBackgroundJobs(PrintStream out) {
+        List<Integer> sortedIds = new ArrayList<>(activeJobs.keySet());
+        Collections.sort(sortedIds);
+
+        int activeCount = jobStartOrder.size();
+        int currentJobId = activeCount >= 1 ? jobStartOrder.get(activeCount - 1) : -1;
+        int previousJobId = activeCount >= 2 ? jobStartOrder.get(activeCount - 2) : -1;
+
+        List<Integer> jobsToRemove = new ArrayList<>();
+
+        for (int id : sortedIds) {
+            Job job = activeJobs.get(id);
+            if (job != null && job.status.equals("Running")) {
+                boolean alive = false;
+                for (Process p : job.processes) {
+                    if (p.isAlive()) {
+                        alive = true;
+                        break;
+                    }
+                }
+                if (!alive) {
+                    job.status = "Done";
+                    
+                    char marker = ' ';
+                    if (id == currentJobId) {
+                        marker = '+';
+                    } else if (id == previousJobId) {
+                        marker = '-';
+                    }
+
+                    String prefix = "[" + job.id + "]" + marker + "  " + job.status;
+                    String cmdStr = job.commandLine;
+                    if (cmdStr.endsWith(" &")) {
+                        cmdStr = cmdStr.substring(0, cmdStr.length() - 2);
+                    }
+                    out.println(prefix + "                 " + cmdStr);
+                    out.flush();
+
+                    jobsToRemove.add(id);
+                }
+            }
+        }
+
+        for (int id : jobsToRemove) {
+            deregisterJob(id);
+        }
+    }
+
     private int registerJob(CommandLineParser.Pipeline pipeline) {
         int id = jobCounter.getAndIncrement();
         String cmdLine = getCommandLineString(pipeline);
@@ -314,9 +362,7 @@ public class Shell {
                     }
                 }
 
-                if (job != null) {
-                    job.status = "Done";
-                }
+                // The wait thread just waits for the processes to exit and lets reapBackgroundJobs handle the Done status and cleanup.
             });
             waitThread.setDaemon(true);
             waitThread.start();

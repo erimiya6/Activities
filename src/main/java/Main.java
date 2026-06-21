@@ -6,6 +6,7 @@ public class Main {
         Shell shell = new Shell();
 
         while (true) {
+            shell.reapBackgroundJobs(System.out);
             System.out.print("$ ");
             System.out.flush();
 
