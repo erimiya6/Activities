@@ -22,7 +22,6 @@ public class Shell {
 
         String commandName = cmd.arguments.get(0);
 
-        // Resolve redirection streams for builtins and shell level errors
         PrintStream originalOut = System.out;
         PrintStream originalErr = System.err;
         PrintStream out = originalOut;
@@ -34,7 +33,6 @@ public class Shell {
                 if (!file.isAbsolute()) {
                     file = new File(currentDirectory, cmd.stdoutFile);
                 }
-                // Ensure parent directory exists
                 File parent = file.getParentFile();
                 if (parent != null) {
                     parent.mkdirs();
@@ -46,7 +44,6 @@ public class Shell {
                 if (!file.isAbsolute()) {
                     file = new File(currentDirectory, cmd.stderrFile);
                 }
-                // Ensure parent directory exists
                 File parent = file.getParentFile();
                 if (parent != null) {
                     parent.mkdirs();
@@ -165,7 +162,6 @@ public class Shell {
             ProcessBuilder pb = new ProcessBuilder(cmd.arguments);
             pb.directory(currentDirectory);
 
-            // Handle redirection for external processes
             if (cmd.stdoutFile != null) {
                 File file = new File(cmd.stdoutFile);
                 if (!file.isAbsolute()) {
