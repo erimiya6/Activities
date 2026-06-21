@@ -114,7 +114,11 @@ public class Shell {
     }
 
     private int registerJob(CommandLineParser.Pipeline pipeline) {
-        int id = jobCounter.getAndIncrement();
+        // Find the smallest positive integer not currently used as a job ID.
+        int id = 1;
+        while (activeJobs.containsKey(id)) {
+            id++;
+        }
         String cmdLine = getCommandLineString(pipeline);
         Job job = new Job(id, cmdLine, new ArrayList<>(), "Running");
         activeJobs.put(id, job);
