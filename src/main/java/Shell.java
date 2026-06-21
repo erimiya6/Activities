@@ -312,9 +312,6 @@ public class Shell {
                         }
                     }
 
-                    String cmdLine = getCommandLineString(pipeline);
-                    System.out.println("[" + jobId + "]+  Done                    " + cmdLine);
-                    System.out.flush();
                 } finally {
                     deregisterJob(jobId);
                 }
